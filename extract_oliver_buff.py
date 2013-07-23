@@ -44,76 +44,34 @@ def fixedExtract(s, *args):
 
 def extractData(filename):
     global options
-    try:
-        with open(filename, 'r') as f:
-            page = 0
-            inLoc = -1  # 0: heading, 1: THead, 2: data, 3: footer, -1: nowhere
-            haveHeaderInfo = False
-            title = ""
-            titleRE = re.compile(r"\*---(.*)---\*")
-            THead = []
-            datalines = []
+    with open(filename, 'r') as f:
+        data = []
+        page = 0
+        inLoc = -1  # 0: heading, 1: THead, 2: data, 3: footer, -1: nowhere
+        haveHeaderInfo = False
+        title = ""
+        titleRE = re.compile(r"\*---(.*)---\*")
+        THead = []
+        datalines = []
 
-            for line in f:
+        dataRE = re.compile(r" +(.*)")
 
-                # Form feed signifies new page
-                if "\f" in line:
-                    inLoc = 0
-                    hCount = 0
-                    inHeading = True
-                    inTHead = False
-                    page = page + 1
-                    continue
+        count = 0
+        for line in f:
+            count += 1
+            if any(keyword in line for keyword in ['PRECURE', 'BRAND', 'SIZE', 'Page', '7/1/2006']) or line == "\n":
+                continue
+            else:
+                parts = [x.strip('\n "') for x in re.compile(r'\s\s+').split(line.strip(' '))]
+                if len(parts) == 4:
+                    parts.insert(3, "")
+                print(parts)
+                datalines.append(parts)
+                if len(parts) != 5:
+                    print("Problem at line %d" % count)
+                    sys.exit(2)
+    return datalines
 
-                if page > 0:  # We're outside the debug job header area
-
-                    if line.startswith("#####"):
-                        if inLoc != -1:
-                            yield [title, THead, datalines]
-                            inLoc == -1
-                            haveHeaderInfo = False
-                            title = ""
-                            THead = []
-                            datalines = []
-                            page = 0
-                        continue
-
-                    # Move through Sections
-                    if "===========" in line:
-                        inLoc += 1
-                        if inLoc == 2:
-                            haveHeaderInfo = True
-
-                    elif inLoc == 0:  # In Heading Area
-                        if title in ["BUFF SPECIFICATIONS", "CUSTOMER PROFILE"]:  # Have to add this since these reports don't have the top ====== line for the header
-                            inLoc += 1
-
-                        # Find Title to report
-                        elif not haveHeaderInfo and title == "" and "*" in line:
-                            match = re.search(titleRE, line)
-                            if match:
-                                title = match.group(1).strip("\n ")
-
-                        # Check if we're still of the header area
-                    elif inLoc == 1:  # In THead
-
-                        if not haveHeaderInfo and "CUSTOMER PROFILE" not in title:
-                            if line == "":
-                                continue
-                            THead.append(line.strip("\n"))
-
-                    elif inLoc == 2:  # In data section
-                        if line.startswith("***"):  # Some reports have summaries that start with multiple stars
-                            continue
-                        datalines.append(line.strip("\n"))
-                    elif inLoc == 3:  # In Footer (typically at the end of a report)
-                        continue  # do nothing for now
-
-    except Exception as e:
-        print(str(e))
-        print('Couldn\'t open filename %s' % filename)
-
-    yield [title, THead, datalines]
 
 
 def processData(items):
@@ -358,19 +316,20 @@ def main ():
 
     global options
 
-    if not os.path.exists(options.output):
-        os.makedirs(options.output)
+    results = extractData(options.inputfile)
+    with open('oliver_buff' + '.csv', 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        for line in results:
+            writer.writerow(line)
 
-    path = os.path.abspath(options.output)
-    for i in extractData(options.inputfile):
-        try:
-            results = processData(i)
-            print(i[0])
-            filename=i[0].replace(" ","_").replace("/","-")
-            writeCSV(os.path.join(path,filename), results)
-        except Exception as e:
-            print(str(e))
-            traceback.print_exc()
+        # try:
+        #     results = processData(i)
+        #     # print(i[0])
+        #     # filename=i[0].replace(" ","_").replace("/","-")
+        #     # writeCSV(os.path.join(path,filename), results)
+        # except Exception as e:
+        #     print(str(e))
+        #     traceback.print_exc()
 
 if __name__ == '__main__':
     try:
