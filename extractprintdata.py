@@ -239,6 +239,26 @@ def processData(items):
 
         return [title, headings, results]
 
+    elif "CUSTOMER MASTER FILE" in title:
+        headings = "CUSTOMER NO.|CUSTOMER NAME|SHORT NAME|ALTERNATE CUST NO.|SHIP ZONE|TAX CUST|TAX CODE|SALESMAN|TERMS"
+        headings = headings.split("|")
+
+        results=[]
+        widths = (10,41,52,64,72,75,87,113, 132)
+        for line in datalines:
+            results.append(fixedExtract(line,*widths))
+        return [title, headings, results]
+
+    elif "VENDOR MASTER FILE" in title:
+        headings = "SHORT NAME|NUMBER|NAME|ADDR 1|CITY|ST|ZIP|PHONE"
+        headings = headings.split("|")
+
+        results=[]
+        widths = (7,18,49,80,96,99,110, 132)
+        for line in datalines:
+            results.append(fixedExtract(line,*widths))
+        return [title, headings, results]
+
 
     #
     # Everything else goes here
@@ -271,6 +291,7 @@ def processData(items):
             headings[idx] = ("" if headings[idx] == "" else headings[idx] + " ") + line[min(theRange):max(theRange)+1].strip("\n ")
 
     #Get data
+    cols=[]
     if(len(datalines) != 0):
         cols = reduce(lambda x,y: set(x) & set(y), map(findIndexes, map(str.ljust,datalines, repeat(maxwidth)), repeat(" ")))
     else:
